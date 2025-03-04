@@ -5,7 +5,7 @@
  * SETUP INSTRUCTIONS:
  * 
  * 1. ATTACH TO CHARACTER:
- *    - Attach this script to your monster character GameObject in the scene
+ *    - Attach this script to the monster character GameObject in the scene
  * 
  * 2. SETUP UI COMPONENTS:
  *    - Create a Canvas with:
@@ -23,9 +23,7 @@
  *      - state 0: idle
  *      - state 1: walk
  *      - state 2: run
- *      - state 3: jump_start
- *      - state 4: jump_fall
- *      - state 5: jump_end
+ *      - state 3: jump
  *    - The Animator should have an "state" integer parameter that this script controls
  * 
  * 5. TESTING:
