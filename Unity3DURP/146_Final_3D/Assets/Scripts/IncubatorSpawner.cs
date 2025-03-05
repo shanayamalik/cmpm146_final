@@ -9,7 +9,9 @@ public class IncubatorSpawner : MonoBehaviour
     {
         if (CreatureTracker.selectedCreaturePrefab != null)
         {
-            Instantiate(CreatureTracker.selectedCreaturePrefab, Vector3.zero, Quaternion.identity);
+            Vector3 spawnPosition = new Vector3(0f, 0f, 100f); // adjust this to control where selected creature spawns
+            Quaternion spawnRotation = Quaternion.Euler(0f, 180f, 0f); // makes the creature spawn facing the right way
+            Instantiate(CreatureTracker.selectedCreaturePrefab, spawnPosition, spawnRotation);
         }
     }
 
