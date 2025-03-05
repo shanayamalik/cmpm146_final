@@ -63,7 +63,12 @@
         private float irritation = 0.2f;
         private float sleepiness = 0.3f;
         private float excitement = 0.7f;
-        
+
+        // UI Buttons (NEW)
+        public Button feedButton;
+        public Button playButton;
+        public Button trainButton;
+  
         void Start()
         {
             anim = GetComponent<Animator>();
@@ -82,9 +87,44 @@
             {
                 Debug.LogError("Chat Response Text not assigned to MonsterAnimController!");
             }
-            
+
+            // Assign Buttons (NEW)
+            if (feedButton != null) feedButton.onClick.AddListener(() => OnPlayerAction("feed"));
+            if (playButton != null) playButton.onClick.AddListener(() => OnPlayerAction("play"));
+            if (trainButton != null) trainButton.onClick.AddListener(() => OnPlayerAction("train"));
+    
             // Start periodic AI updates
             StartCoroutine(AutoUpdateAI());
+        }
+
+        // Player interacts via buttons (NEW)
+        void OnPlayerAction(string actionType)
+        {
+            if (isWaitingForResponse) return;
+            isWaitingForResponse = true;
+
+            switch (actionType)
+            {
+                case "feed":
+                    hunger = Mathf.Clamp01(hunger + 0.2f);
+                    attitude = Mathf.Clamp01(attitude + 0.1f);
+                    SetAnimation("eat");  
+                    break;
+
+                case "play":
+                    playfulness = Mathf.Clamp01(playfulness + 0.2f);
+                    sleepiness = Mathf.Clamp01(sleepiness - 0.1f);
+                    SetAnimation("play");
+                    break;
+
+                case "train":
+                    irritation = Mathf.Clamp01(irritation - 0.2f);
+                    excitement = Mathf.Clamp01(excitement + 0.2f);
+                    SetAnimation("train");
+                    break;
+            }
+
+            StartCoroutine(ProcessAIResponse("", actionType)); // Send to AI
         }
         
         void OnChatSubmit(string message)
@@ -142,22 +182,20 @@
         
         string GenerateSystemPrompt(string eventType, string message)
         {
-            return $"You are controlling a virtual monster character in a game with these emotional states: " +
-                $"attitude: {attitude.ToString("F2")}, hunger: {hunger.ToString("F2")}, " +
-                $"playfulness: {playfulness.ToString("F2")}, irritation: {irritation.ToString("F2")}, " +
-                $"sleepiness: {sleepiness.ToString("F2")}, excitement: {excitement.ToString("F2")}. " +
+            return $"You are controlling a virtual monster character with emotions: " +
+                $"attitude: {attitude:F2}, hunger: {hunger:F2}, " +
+                $"playfulness: {playfulness:F2}, irritation: {irritation:F2}, " +
+                $"sleepiness: {sleepiness:F2}, excitement: {excitement:F2}. " +
                 $"Event: {eventType}. " +
                 $"Player message: \"{message}\". " +
-                $"Based on the character's current emotional state and the player's message, " +
-                $"respond with JSON in EXACTLY this format: " +
-                $"{{\"dialogue\": \"Your character's response here\", " +
+                $"Generate JSON response in EXACTLY this format: " +
+                $"{{\"dialogue\": \"Your response here\", " +
                 $"\"emotion_updates\": {{\"attitude\": 0.5, \"hunger\": 0.5, \"playfulness\": 0.5, " +
                 $"\"irritation\": 0.2, \"sleepiness\": 0.3, \"excitement\": 0.7}}, " +
                 $"\"animation\": \"idle\"}}. " +
-                $"For animation, only use: idle, walk, run, or jump_start. " +
-                $"Ensure all emotion values stay between 0.0 and 1.0. " +
-                $"Make the dialogue and emotions match the character's current state.";
+                $"Only use: idle, walk, run, jump_start, eat, play, train.";
         }
+
         
         async Task<string> CallGeminiAPI(string prompt)
         {
@@ -298,9 +336,17 @@
                 case "jump_start":
                     StartCoroutine(JumpSequence());
                     break;
+                case "eat":
+                    anim.SetInteger("state", 6);
+                    break;
+                case "play":
+                    anim.SetInteger("state", 7);
+                    break;
+                case "train":
+                    anim.SetInteger("state", 8);
+                    break;
                 default:
-                    Debug.LogWarning($"Unknown animation: {animationName}");
-                    anim.SetInteger("state", 0); // Default to idle
+                    anim.SetInteger("state", 0);
                     break;
             }
         }
