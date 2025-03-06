@@ -56,7 +56,7 @@
         public Button playButton;
         public Button trainButton;
         [SerializeField]
-        public string apiKey = "YOUR_GEMINI_API_KEY_HERE"; // Replace with actual API key
+        public string apiKey = "AIzaSyCHv0hGYF2CiMtl3gYQ6TUmzndXS4er0zc"; // Replace with actual API key
         private bool isWaitingForResponse = false; // Prevent multiple requests at once
         
         // Emotion states (0 to 1 scale)
