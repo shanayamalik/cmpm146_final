@@ -12,16 +12,4 @@ public class CreatureSelect : MonoBehaviour
         CreatureTracker.SetSelectedPrefab(creaturePrefab);
         SceneManager.LoadScene("IncubatorScene");
     }
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 }

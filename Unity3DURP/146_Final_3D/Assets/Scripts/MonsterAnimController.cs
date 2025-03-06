@@ -51,9 +51,12 @@
         public Camera mainCamera;
         public InputField chatInput;
         public Text chatResponseText;
-        
+        // UI Buttons (NEW)
+        public Button feedButton;
+        public Button playButton;
+        public Button trainButton;
         [SerializeField]
-        private string apiKey = "YOUR_GEMINI_API_KEY_HERE"; // Replace with actual API key
+        public string apiKey = "YOUR_GEMINI_API_KEY_HERE"; // Replace with actual API key
         private bool isWaitingForResponse = false; // Prevent multiple requests at once
         
         // Emotion states (0 to 1 scale)
@@ -64,10 +67,7 @@
         private float sleepiness = 0.3f;
         private float excitement = 0.7f;
 
-        // UI Buttons (NEW)
-        public Button feedButton;
-        public Button playButton;
-        public Button trainButton;
+        
   
         void Start()
         {
@@ -108,19 +108,25 @@
                 case "feed":
                     hunger = Mathf.Clamp01(hunger + 0.2f);
                     attitude = Mathf.Clamp01(attitude + 0.1f);
-                    SetAnimation("eat");  
+                    SetAnimation("eat");
+                    chatResponseText.text = "Feeding";
+                    Debug.Log("Feeding!!");
                     break;
 
                 case "play":
                     playfulness = Mathf.Clamp01(playfulness + 0.2f);
                     sleepiness = Mathf.Clamp01(sleepiness - 0.1f);
                     SetAnimation("play");
+                    chatResponseText.text = "Playing";
+                    Debug.Log("Playing!!");
                     break;
 
                 case "train":
                     irritation = Mathf.Clamp01(irritation - 0.2f);
                     excitement = Mathf.Clamp01(excitement + 0.2f);
                     SetAnimation("train");
+                    chatResponseText.text = "Training";
+                    Debug.Log("Training!!");
                     break;
             }
 
@@ -193,7 +199,7 @@
                 $"\"emotion_updates\": {{\"attitude\": 0.5, \"hunger\": 0.5, \"playfulness\": 0.5, " +
                 $"\"irritation\": 0.2, \"sleepiness\": 0.3, \"excitement\": 0.7}}, " +
                 $"\"animation\": \"idle\"}}. " +
-                $"Only use: idle, walk, run, jump_start, eat, play, train.";
+                $"Only use: idle, walk, run, jump, eat, play, train.";
         }
 
         
@@ -325,42 +331,30 @@
             switch (animationName.ToLower())
             {
                 case "idle":
-                    anim.SetInteger("state", 0);
-                    break;
-                case "walk":
                     anim.SetInteger("state", 1);
                     break;
-                case "run":
+                case "jump":
                     anim.SetInteger("state", 2);
                     break;
-                case "jump_start":
-                    StartCoroutine(JumpSequence());
+                case "walk":
+                    anim.SetInteger("state", 3);
                     break;
-                case "eat":
-                    anim.SetInteger("state", 6);
+                case "run":
+                    anim.SetInteger("state", 4);
                     break;
-                case "play":
-                    anim.SetInteger("state", 7);
-                    break;
-                case "train":
-                    anim.SetInteger("state", 8);
-                    break;
-                default:
-                    anim.SetInteger("state", 0);
-                    break;
+                // case "eat":
+                //     anim.SetInteger("state", 6);
+                //     break;
+                // case "play":
+                //     anim.SetInteger("state", 7);
+                //     break;
+                // case "train":
+                //     anim.SetInteger("state", 8);
+                //     break;
+                // default:
+                //     anim.SetInteger("state", 0);
+                //     break;
             }
-        }
-        
-        IEnumerator JumpSequence()
-        {
-            anim.SetInteger("state", 3); // Jump Start
-            yield return new WaitForSeconds(0.5f);
-            anim.SetInteger("state", 4); // Jump Fall
-            yield return new WaitForSeconds(0.5f);
-            anim.SetInteger("state", 5); // Jump End
-            yield return new WaitForSeconds(0.5f);
-            
-            SetAnimation("idle"); // Reset to idle after jumping
         }
         
         IEnumerator AutoUpdateAI()
