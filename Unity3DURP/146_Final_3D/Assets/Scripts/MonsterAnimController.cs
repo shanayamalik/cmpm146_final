@@ -92,11 +92,12 @@ public class MonsterAnimController : MonoBehaviour
                 while (!operation.isDone) await Task.Delay(10);
                 if (request.result == UnityWebRequest.Result.Success)
                 {
+                    Debug.Log("API Response: " + request.downloadHandler.text);
                     return request.downloadHandler.text;
                 }
                 else
                 {
-                    string errorMessage = $"API Error: {request.error}\nResponse: {request.downloadHandler.text}";
+                    string errorMessage = $"API Error: {request.result}\nHTTP Error: {request.responseCode}\nMessage: {request.error}\nResponse: {request.downloadHandler.text}";
                     Debug.LogError(errorMessage);
                     if (chatResponseText != null) chatResponseText.text = errorMessage;
                     return null;
