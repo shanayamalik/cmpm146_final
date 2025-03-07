@@ -47,6 +47,43 @@ using UnityEngine.Networking;
 using Newtonsoft.Json;
 using System.IO;
 
+// Main thread dispatcher for UI updates from async methods
+public class UnityMainThreadDispatcher : MonoBehaviour
+{
+    private static readonly Queue<Action> _executionQueue = new Queue<Action>();
+    private static UnityMainThreadDispatcher _instance = null;
+
+    public static UnityMainThreadDispatcher Instance()
+    {
+        if (_instance == null)
+        {
+            GameObject go = new GameObject("UnityMainThreadDispatcher");
+            _instance = go.AddComponent<UnityMainThreadDispatcher>();
+            DontDestroyOnLoad(go);
+        }
+        return _instance;
+    }
+
+    public void Enqueue(Action action)
+    {
+        lock (_executionQueue)
+        {
+            _executionQueue.Enqueue(action);
+        }
+    }
+
+    void Update()
+    {
+        lock (_executionQueue)
+        {
+            while (_executionQueue.Count > 0)
+            {
+                _executionQueue.Dequeue().Invoke();
+            }
+        }
+    }
+}
+
 public class MonsterAnimController : MonoBehaviour
 {
     private Animator anim;
@@ -58,7 +95,7 @@ public class MonsterAnimController : MonoBehaviour
     public Button playButton;
     public Button trainButton;
     
-    private string apiKey; // Will be loaded from environment variable
+    public string apiKey; // Will be loaded from environment variable - made public for access from other scripts
     private bool isWaitingForResponse = false; // Prevent multiple requests at once
     
     // Emotion states (0 to 1 scale)
@@ -104,32 +141,67 @@ public class MonsterAnimController : MonoBehaviour
     {
         try
         {
+            string debugMessage = "API Key Loading: ";
             string envFilePath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".env");
+            
+            debugMessage += $"Looking for .env at: {envFilePath}... ";
+            
             if (File.Exists(envFilePath))
             {
+                debugMessage += "Found! ";
                 string[] lines = File.ReadAllLines(envFilePath);
                 foreach (string line in lines)
                 {
                     if (line.StartsWith("GEMINI_API_KEY="))
                     {
                         apiKey = line.Substring("GEMINI_API_KEY=".Length).Trim('"');
-                        Debug.Log("API key loaded from .env file");
+                        debugMessage += "API key loaded from .env file";
+                        Debug.Log(debugMessage);
+                        if (chatResponseText != null)
+                        {
+                            chatResponseText.text = debugMessage;
+                        }
                         return;
                     }
                 }
+                debugMessage += "GEMINI_API_KEY not found in .env. ";
+            }
+            else
+            {
+                debugMessage += ".env file not found. ";
             }
             
             // Fallback to environment variable if .env file not found or key not in file
+            debugMessage += "Checking environment variables... ";
             apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
             
             if (string.IsNullOrEmpty(apiKey))
             {
-                Debug.LogError("Failed to load Gemini API key from environment variables or .env file");
+                debugMessage += "API key not found in environment variables.";
+                Debug.LogError(debugMessage);
+                if (chatResponseText != null)
+                {
+                    chatResponseText.text = debugMessage;
+                }
+            }
+            else
+            {
+                debugMessage += "API key loaded from environment variables.";
+                Debug.Log(debugMessage);
+                if (chatResponseText != null)
+                {
+                    chatResponseText.text = debugMessage;
+                }
             }
         }
         catch (Exception ex)
         {
-            Debug.LogError($"Error loading API key: {ex.Message}");
+            string errorMsg = $"Error loading API key: {ex.Message}";
+            Debug.LogError(errorMsg);
+            if (chatResponseText != null)
+            {
+                chatResponseText.text = errorMsg;
+            }
         }
     }
 
@@ -184,27 +256,51 @@ public class MonsterAnimController : MonoBehaviour
         // Check if API key is available
         if (string.IsNullOrEmpty(apiKey))
         {
-            chatResponseText.text = "API key not available. Please check your environment setup.";
+            string errorMsg = "API key not available. Please check your environment setup.";
+            Debug.LogError(errorMsg);
+            if (chatResponseText != null)
+            {
+                chatResponseText.text = errorMsg;
+            }
             isWaitingForResponse = false;
             yield break;
         }
         
         string prompt = GenerateSystemPrompt(eventType, message);
         
-        // Display "thinking" message for better UX
+        // Display detailed status message
         if (chatResponseText != null)
         {
-            chatResponseText.text = "Thinking...";
+            chatResponseText.text = $"Starting API call...\nEvent: {eventType}\nInput: {(string.IsNullOrEmpty(message) ? "[none]" : message)}\nUsing API key: {apiKey.Substring(0, 3)}...{apiKey.Substring(apiKey.Length - 3)}";
+        }
+        
+        yield return new WaitForSeconds(0.5f); // Brief pause to display the initial status
+        
+        if (chatResponseText != null)
+        {
+            chatResponseText.text += "\n\nCalling Gemini API...";
         }
         
         string jsonResponse = null;
+        DateTime startTime = DateTime.Now;
         
         // Call API and wait for response
         var apiCallTask = CallGeminiAPI(prompt);
         
+        // Add a counter to show that it's still working
+        int dots = 0;
         while (!apiCallTask.IsCompleted)
         {
-            yield return null;
+            dots = (dots + 1) % 4;
+            string dotAnimation = new string('.', dots);
+            TimeSpan elapsed = DateTime.Now - startTime;
+            
+            if (chatResponseText != null)
+            {
+                chatResponseText.text = $"Calling Gemini API{dotAnimation}\nElapsed time: {elapsed.TotalSeconds:F1}s";
+            }
+            
+            yield return new WaitForSeconds(0.2f);
         }
         
         jsonResponse = apiCallTask.Result;
@@ -212,18 +308,38 @@ public class MonsterAnimController : MonoBehaviour
         // Process response
         if (!string.IsNullOrEmpty(jsonResponse))
         {
-            string processedResponse = HandleAIResponse(jsonResponse);
-            
             if (chatResponseText != null)
             {
-                chatResponseText.text = processedResponse;
+                chatResponseText.text = "Response received, processing...";
+                yield return new WaitForSeconds(0.3f); // Brief pause to show processing message
+            }
+            
+            try
+            {
+                string processedResponse = HandleAIResponse(jsonResponse);
+                
+                if (chatResponseText != null)
+                {
+                    chatResponseText.text = processedResponse;
+                }
+            }
+            catch (Exception ex)
+            {
+                string errorMsg = $"Error processing response: {ex.Message}";
+                Debug.LogError(errorMsg);
+                if (chatResponseText != null)
+                {
+                    chatResponseText.text = errorMsg;
+                }
             }
         }
         else
         {
+            string errorMsg = "Failed to get a response from Gemini API. Check console for details.";
+            Debug.LogError(errorMsg);
             if (chatResponseText != null)
             {
-                chatResponseText.text = "Sorry, I couldn't think of a response.";
+                chatResponseText.text = errorMsg;
             }
         }
         
@@ -249,7 +365,7 @@ public class MonsterAnimController : MonoBehaviour
     
     async Task<string> CallGeminiAPI(string prompt)
     {
-        string apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={apiKey}";
+        string apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
         
         // Properly format the request for Gemini API
         var requestData = new
@@ -275,6 +391,7 @@ public class MonsterAnimController : MonoBehaviour
         };
         
         string jsonData = JsonConvert.SerializeObject(requestData);
+        Debug.Log($"Sending request to Gemini API with prompt length: {prompt.Length} chars");
         
         try
         {
@@ -286,6 +403,7 @@ public class MonsterAnimController : MonoBehaviour
                 request.SetRequestHeader("Content-Type", "application/json");
                 
                 // Send the request and await completion
+                Debug.Log("Starting Gemini API request...");
                 var operation = request.SendWebRequest();
                 
                 while (!operation.isDone)
@@ -295,18 +413,44 @@ public class MonsterAnimController : MonoBehaviour
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
+                    Debug.Log($"API request successful. Response length: {request.downloadHandler.text.Length} chars");
+                    if (chatResponseText != null)
+                    {
+                        // We'll update this on the main thread through the coroutine
+                        UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                            chatResponseText.text = "API Request successful, parsing response...";
+                        });
+                    }
                     return request.downloadHandler.text;
                 }
                 else
                 {
-                    Debug.LogError($"API Request Failed: {request.error}\nResponse: {request.downloadHandler.text}");
+                    string errorMessage = $"API Request Failed: {request.error}\nResponse: {request.downloadHandler.text}";
+                    Debug.LogError(errorMessage);
+                    
+                    if (chatResponseText != null)
+                    {
+                        // Update UI with error on main thread
+                        UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                            chatResponseText.text = $"Error: {request.error}";
+                        });
+                    }
                     return null;
                 }
             }
         }
         catch (Exception ex)
         {
-            Debug.LogError($"Exception in API call: {ex.Message}");
+            string errorMessage = $"Exception in API call: {ex.Message}";
+            Debug.LogError(errorMessage);
+            
+            if (chatResponseText != null)
+            {
+                // Update UI with error on main thread
+                UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                    chatResponseText.text = $"Exception: {ex.Message}";
+                });
+            }
             return null;
         }
     }
@@ -315,39 +459,67 @@ public class MonsterAnimController : MonoBehaviour
     {
         try
         {
+            Debug.Log("Parsing Gemini API response...");
+            
             // Parse the Gemini API response first
             GeminiResponseWrapper geminiWrapper = JsonConvert.DeserializeObject<GeminiResponseWrapper>(jsonResponse);
             
             if (geminiWrapper == null || geminiWrapper.candidates == null || geminiWrapper.candidates.Length == 0)
             {
-                Debug.LogError("Invalid Gemini API response structure");
-                return "I'm not sure what to say...";
+                string errorMsg = "Invalid Gemini API response structure";
+                Debug.LogError(errorMsg);
+                // Log the raw response for debugging
+                Debug.LogError("Raw response: " + jsonResponse);
+                return "I'm not sure what to say... (Response structure error)";
             }
             
             // Extract the text content from the response
             string textContent = geminiWrapper.candidates[0].content.parts[0].text;
+            Debug.Log($"Extracted text content from Gemini (first 100 chars): {textContent.Substring(0, Math.Min(100, textContent.Length))}...");
             
             // Now parse our custom JSON format from the text
-            GeminiAIResponse customResponse = JsonConvert.DeserializeObject<GeminiAIResponse>(textContent);
-            
-            if (customResponse == null)
+            try
             {
-                Debug.LogError("Failed to parse custom response JSON");
-                return "I'm feeling confused...";
+                GeminiAIResponse customResponse = JsonConvert.DeserializeObject<GeminiAIResponse>(textContent);
+                
+                if (customResponse == null)
+                {
+                    Debug.LogError("Failed to parse custom response JSON - null result");
+                    Debug.LogError("Raw content: " + textContent);
+                    return "I'm feeling confused... (Parsing error)";
+                }
+                
+                // Check if dialogue is null
+                if (customResponse.dialogue == null)
+                {
+                    Debug.LogError("Dialogue field is null in parsed response");
+                    Debug.LogError("Raw content: " + textContent);
+                    return "I'm not sure what to say... (Dialogue missing)";
+                }
+                
+                // Update emotions with validation
+                UpdateEmotions(customResponse.emotion_updates);
+                
+                // Set animation
+                SetAnimation(customResponse.animation);
+                
+                Debug.Log($"Successfully processed AI response. Dialogue: {customResponse.dialogue.Substring(0, Math.Min(50, customResponse.dialogue.Length))}...");
+                return customResponse.dialogue;
             }
-            
-            // Update emotions with validation
-            UpdateEmotions(customResponse.emotion_updates);
-            
-            // Set animation
-            SetAnimation(customResponse.animation);
-            
-            return customResponse.dialogue;
+            catch (JsonException jsonEx)
+            {
+                string errorMsg = $"JSON parsing error: {jsonEx.Message}";
+                Debug.LogError(errorMsg);
+                Debug.LogError("Content that failed to parse: " + textContent);
+                return $"I'm having trouble understanding... (JSON error: {jsonEx.Message})";
+            }
         }
         catch (Exception ex)
         {
-            Debug.LogError($"Error parsing AI response: {ex.Message}\nJSON: {jsonResponse}");
-            return "I'm not feeling quite right...";
+            string errorMsg = $"Error parsing AI response: {ex.Message}";
+            Debug.LogError(errorMsg);
+            Debug.LogError("JSON response preview: " + jsonResponse.Substring(0, Math.Min(500, jsonResponse.Length)));
+            return $"I'm not feeling quite right... (Error: {ex.Message})";
         }
     }
     
