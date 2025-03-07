@@ -141,66 +141,48 @@ public class MonsterAnimController : MonoBehaviour
     {
         try
         {
-            string debugMessage = "API Key Loading: ";
             string envFilePath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".env");
-            
-            debugMessage += $"Looking for .env at: {envFilePath}... ";
             
             if (File.Exists(envFilePath))
             {
-                debugMessage += "Found! ";
                 string[] lines = File.ReadAllLines(envFilePath);
                 foreach (string line in lines)
                 {
                     if (line.StartsWith("GEMINI_API_KEY="))
                     {
                         apiKey = line.Substring("GEMINI_API_KEY=".Length).Trim('"');
-                        debugMessage += "API key loaded from .env file";
-                        Debug.Log(debugMessage);
                         if (chatResponseText != null)
                         {
-                            chatResponseText.text = debugMessage;
+                            chatResponseText.text = "API key loaded successfully";
                         }
                         return;
                     }
                 }
-                debugMessage += "GEMINI_API_KEY not found in .env. ";
-            }
-            else
-            {
-                debugMessage += ".env file not found. ";
             }
             
             // Fallback to environment variable if .env file not found or key not in file
-            debugMessage += "Checking environment variables... ";
             apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
             
             if (string.IsNullOrEmpty(apiKey))
             {
-                debugMessage += "API key not found in environment variables.";
-                Debug.LogError(debugMessage);
                 if (chatResponseText != null)
                 {
-                    chatResponseText.text = debugMessage;
+                    chatResponseText.text = "API key not found in environment variables or .env file";
                 }
             }
             else
             {
-                debugMessage += "API key loaded from environment variables.";
-                Debug.Log(debugMessage);
                 if (chatResponseText != null)
                 {
-                    chatResponseText.text = debugMessage;
+                    chatResponseText.text = "API key loaded successfully";
                 }
             }
         }
         catch (Exception ex)
         {
-            string errorMsg = $"Error loading API key: {ex.Message}";
-            Debug.LogError(errorMsg);
             if (chatResponseText != null)
             {
-                chatResponseText.text = errorMsg;
+                chatResponseText.text = "Error loading API key";
             }
         }
     }
@@ -256,11 +238,9 @@ public class MonsterAnimController : MonoBehaviour
         // Check if API key is available
         if (string.IsNullOrEmpty(apiKey))
         {
-            string errorMsg = "API key not available. Please check your environment setup.";
-            Debug.LogError(errorMsg);
             if (chatResponseText != null)
             {
-                chatResponseText.text = errorMsg;
+                chatResponseText.text = "API key not available. Please check your environment setup.";
             }
             isWaitingForResponse = false;
             yield break;
@@ -268,36 +248,27 @@ public class MonsterAnimController : MonoBehaviour
         
         string prompt = GenerateSystemPrompt(eventType, message);
         
-        // Display detailed status message
+        // Display thinking message
         if (chatResponseText != null)
         {
-            chatResponseText.text = $"Starting API call...\nEvent: {eventType}\nInput: {(string.IsNullOrEmpty(message) ? "[none]" : message)}\nUsing API key: {apiKey.Substring(0, 3)}...{apiKey.Substring(apiKey.Length - 3)}";
-        }
-        
-        yield return new WaitForSeconds(0.5f); // Brief pause to display the initial status
-        
-        if (chatResponseText != null)
-        {
-            chatResponseText.text += "\n\nCalling Gemini API...";
+            chatResponseText.text = "Thinking...";
         }
         
         string jsonResponse = null;
-        DateTime startTime = DateTime.Now;
         
         // Call API and wait for response
         var apiCallTask = CallGeminiAPI(prompt);
         
-        // Add a counter to show that it's still working
+        // Add a simple loading indicator
         int dots = 0;
         while (!apiCallTask.IsCompleted)
         {
             dots = (dots + 1) % 4;
             string dotAnimation = new string('.', dots);
-            TimeSpan elapsed = DateTime.Now - startTime;
             
             if (chatResponseText != null)
             {
-                chatResponseText.text = $"Calling Gemini API{dotAnimation}\nElapsed time: {elapsed.TotalSeconds:F1}s";
+                chatResponseText.text = $"Thinking{dotAnimation}";
             }
             
             yield return new WaitForSeconds(0.2f);
@@ -308,12 +279,6 @@ public class MonsterAnimController : MonoBehaviour
         // Process response
         if (!string.IsNullOrEmpty(jsonResponse))
         {
-            if (chatResponseText != null)
-            {
-                chatResponseText.text = "Response received, processing...";
-                yield return new WaitForSeconds(0.3f); // Brief pause to show processing message
-            }
-            
             try
             {
                 string processedResponse = HandleAIResponse(jsonResponse);
@@ -325,21 +290,17 @@ public class MonsterAnimController : MonoBehaviour
             }
             catch (Exception ex)
             {
-                string errorMsg = $"Error processing response: {ex.Message}";
-                Debug.LogError(errorMsg);
                 if (chatResponseText != null)
                 {
-                    chatResponseText.text = errorMsg;
+                    chatResponseText.text = "I'm having trouble thinking right now.";
                 }
             }
         }
         else
         {
-            string errorMsg = "Failed to get a response from Gemini API. Check console for details.";
-            Debug.LogError(errorMsg);
             if (chatResponseText != null)
             {
-                chatResponseText.text = errorMsg;
+                chatResponseText.text = "Sorry, I couldn't think of a response.";
             }
         }
         
@@ -392,7 +353,6 @@ public class MonsterAnimController : MonoBehaviour
         };
         
         string jsonData = JsonConvert.SerializeObject(requestData);
-        Debug.Log($"Sending request to Gemini API with prompt length: {prompt.Length} chars");
         
         try
         {
@@ -404,7 +364,6 @@ public class MonsterAnimController : MonoBehaviour
                 request.SetRequestHeader("Content-Type", "application/json");
                 
                 // Send the request and await completion
-                Debug.Log("Starting Gemini API request...");
                 var operation = request.SendWebRequest();
                 
                 while (!operation.isDone)
@@ -414,26 +373,14 @@ public class MonsterAnimController : MonoBehaviour
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
-                    Debug.Log($"API request successful. Response length: {request.downloadHandler.text.Length} chars");
-                    if (chatResponseText != null)
-                    {
-                        // We'll update this on the main thread through the coroutine
-                        UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                            chatResponseText.text = "API Request successful, parsing response...";
-                        });
-                    }
                     return request.downloadHandler.text;
                 }
                 else
                 {
-                    string errorMessage = $"API Request Failed: {request.error}\nResponse: {request.downloadHandler.text}";
-                    Debug.LogError(errorMessage);
-                    
                     if (chatResponseText != null)
                     {
-                        // Update UI with error on main thread
                         UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                            chatResponseText.text = $"Error: {request.error}";
+                            chatResponseText.text = "Failed to connect to Gemini API";
                         });
                     }
                     return null;
@@ -442,14 +389,10 @@ public class MonsterAnimController : MonoBehaviour
         }
         catch (Exception ex)
         {
-            string errorMessage = $"Exception in API call: {ex.Message}";
-            Debug.LogError(errorMessage);
-            
             if (chatResponseText != null)
             {
-                // Update UI with error on main thread
                 UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                    chatResponseText.text = $"Exception: {ex.Message}";
+                    chatResponseText.text = "Error connecting to Gemini API";
                 });
             }
             return null;
@@ -460,23 +403,16 @@ public class MonsterAnimController : MonoBehaviour
     {
         try
         {
-            Debug.Log("Parsing Gemini API response...");
-            
             // Parse the Gemini API response first
             GeminiResponseWrapper geminiWrapper = JsonConvert.DeserializeObject<GeminiResponseWrapper>(jsonResponse);
             
             if (geminiWrapper == null || geminiWrapper.candidates == null || geminiWrapper.candidates.Length == 0)
             {
-                string errorMsg = "Invalid Gemini API response structure";
-                Debug.LogError(errorMsg);
-                // Log the raw response for debugging
-                Debug.LogError("Raw response: " + jsonResponse);
-                return "I'm not sure what to say... (Response structure error)";
+                return "I'm not sure what to say...";
             }
             
             // Extract the text content from the response
             string textContent = geminiWrapper.candidates[0].content.parts[0].text;
-            Debug.Log($"Extracted text content from Gemini (first 100 chars): {textContent.Substring(0, Math.Min(100, textContent.Length))}...");
             
             // Now parse our custom JSON format from the text
             try
@@ -486,31 +422,23 @@ public class MonsterAnimController : MonoBehaviour
                 if (cleanJsonText.StartsWith("```json") && cleanJsonText.EndsWith("```"))
                 {
                     cleanJsonText = cleanJsonText.Substring("```json".Length, cleanJsonText.Length - "```json".Length - "```".Length).Trim();
-                    Debug.Log("Detected and removed markdown json formatting");
                 }
                 else if (cleanJsonText.StartsWith("```") && cleanJsonText.EndsWith("```"))
                 {
                     cleanJsonText = cleanJsonText.Substring("```".Length, cleanJsonText.Length - "```".Length - "```".Length).Trim();
-                    Debug.Log("Detected and removed markdown code formatting");
                 }
-                
-                Debug.Log($"Attempting to parse JSON: {cleanJsonText.Substring(0, Math.Min(100, cleanJsonText.Length))}...");
                 
                 GeminiAIResponse customResponse = JsonConvert.DeserializeObject<GeminiAIResponse>(cleanJsonText);
                 
                 if (customResponse == null)
                 {
-                    Debug.LogError("Failed to parse custom response JSON - null result");
-                    Debug.LogError("Raw content: " + cleanJsonText);
-                    return "I'm feeling confused... (Parsing error)";
+                    return "I'm feeling confused...";
                 }
                 
                 // Check if dialogue is null
                 if (customResponse.dialogue == null)
                 {
-                    Debug.LogError("Dialogue field is null in parsed response");
-                    Debug.LogError("Raw content: " + cleanJsonText);
-                    return "I'm not sure what to say... (Dialogue missing)";
+                    return "I'm not sure what to say...";
                 }
                 
                 // Update emotions with validation
@@ -519,62 +447,38 @@ public class MonsterAnimController : MonoBehaviour
                 // Set animation
                 SetAnimation(customResponse.animation);
                 
-                Debug.Log($"Successfully processed AI response. Dialogue: {customResponse.dialogue.Substring(0, Math.Min(50, customResponse.dialogue.Length))}...");
                 return customResponse.dialogue;
             }
-            catch (JsonException jsonEx)
+            catch (JsonException)
             {
-                string errorMsg = $"JSON parsing error: {jsonEx.Message}";
-                Debug.LogError(errorMsg);
-                Debug.LogError("Content that failed to parse: " + textContent);
-                
                 // Try fallback parsing method - manual extraction
-                try {
-                    Debug.Log("Attempting fallback parsing method...");
-                    string fallbackResponse = ManualJsonExtraction(textContent);
-                    if (!string.IsNullOrEmpty(fallbackResponse)) {
-                        return fallbackResponse;
-                    }
-                }
-                catch (Exception fallbackEx) {
-                    Debug.LogError($"Fallback parsing also failed: {fallbackEx.Message}");
-                }
-                
-                return $"I'm having trouble understanding... (JSON error: {jsonEx.Message})";
-            }
-        }
-        catch (Exception ex)
-        {
-            string errorMsg = $"Error parsing AI response: {ex.Message}";
-            Debug.LogError(errorMsg);
-            Debug.LogError("JSON response preview: " + jsonResponse.Substring(0, Math.Min(500, jsonResponse.Length)));
-            
-            // Try fallback parsing method - manual extraction
-            try {
-                Debug.Log("Attempting fallback parsing method for general exception...");
-                string fallbackResponse = ManualJsonExtraction(jsonResponse);
+                string fallbackResponse = ManualJsonExtraction(textContent);
                 if (!string.IsNullOrEmpty(fallbackResponse)) {
                     return fallbackResponse;
                 }
+                
+                return "I'm having trouble understanding...";
             }
-            catch (Exception fallbackEx) {
-                Debug.LogError($"Fallback parsing also failed: {fallbackEx.Message}");
+        }
+        catch (Exception)
+        {
+            // Try fallback parsing method - manual extraction
+            string fallbackResponse = ManualJsonExtraction(jsonResponse);
+            if (!string.IsNullOrEmpty(fallbackResponse)) {
+                return fallbackResponse;
             }
             
-            return $"I'm not feeling quite right... (Error: {ex.Message})";
+            return "I'm not feeling quite right...";
         }
     }
     
     // Manual JSON extraction in case the regular parser fails
     private string ManualJsonExtraction(string text)
     {
-        Debug.Log("Starting manual JSON extraction");
-        
         try {
             // Try to find the dialogue field manually
             int dialogueStart = text.IndexOf("\"dialogue\":");
             if (dialogueStart < 0) {
-                Debug.LogError("Could not find dialogue field in text");
                 return null;
             }
             
@@ -583,7 +487,6 @@ public class MonsterAnimController : MonoBehaviour
             // Find the string value (should be between quotes)
             int valueStart = text.IndexOf("\"", dialogueStart);
             if (valueStart < 0) {
-                Debug.LogError("Could not find start of dialogue value");
                 return null;
             }
             
@@ -604,12 +507,10 @@ public class MonsterAnimController : MonoBehaviour
             }
             
             if (valueEnd < 0) {
-                Debug.LogError("Could not find end of dialogue value");
                 return null;
             }
             
             string dialogue = text.Substring(valueStart, valueEnd - valueStart);
-            Debug.Log($"Manually extracted dialogue: {dialogue}");
             
             // Try to manually extract animation field
             string animation = "idle"; // Default
@@ -622,7 +523,6 @@ public class MonsterAnimController : MonoBehaviour
                     int animValueEnd = text.IndexOf("\"", animValueStart);
                     if (animValueEnd >= 0) {
                         animation = text.Substring(animValueStart, animValueEnd - animValueStart);
-                        Debug.Log($"Manually extracted animation: {animation}");
                         SetAnimation(animation);
                     }
                 }
@@ -630,8 +530,7 @@ public class MonsterAnimController : MonoBehaviour
             
             return dialogue;
         }
-        catch (Exception ex) {
-            Debug.LogError($"Error in manual extraction: {ex.Message}");
+        catch (Exception) {
             return null;
         }
     }
@@ -647,10 +546,6 @@ public class MonsterAnimController : MonoBehaviour
         irritation = Mathf.Clamp01(updates.irritation);
         sleepiness = Mathf.Clamp01(updates.sleepiness);
         excitement = Mathf.Clamp01(updates.excitement);
-        
-        // Log emotion updates for debugging
-        Debug.Log($"Emotions updated - Attitude: {attitude}, Hunger: {hunger}, Playfulness: {playfulness}, " +
-                $"Irritation: {irritation}, Sleepiness: {sleepiness}, Excitement: {excitement}");
     }
     
     void SetAnimation(string animationName)
