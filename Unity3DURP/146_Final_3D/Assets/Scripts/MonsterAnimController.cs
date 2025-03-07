@@ -354,11 +354,12 @@ public class MonsterAnimController : MonoBehaviour
             $"sleepiness: {sleepiness:F2}, excitement: {excitement:F2}. " +
             $"Event: {eventType}. " +
             $"Player message: \"{message}\". " +
-            $"Generate JSON response in EXACTLY this format: " +
+            $"Generate JSON response in EXACTLY this format with NO markdown formatting: " +
             $"{{\"dialogue\": \"Your response here\", " +
             $"\"emotion_updates\": {{\"attitude\": 0.5, \"hunger\": 0.5, \"playfulness\": 0.5, " +
             $"\"irritation\": 0.2, \"sleepiness\": 0.3, \"excitement\": 0.7}}, " +
             $"\"animation\": \"idle\"}}. " +
+            $"IMPORTANT: No markdown formatting like ```json or ``` around the response. Return ONLY the JSON object itself. " +
             $"Only use animations: idle, walk, run, jump."; // Updated available animations
     }
 
@@ -480,12 +481,27 @@ public class MonsterAnimController : MonoBehaviour
             // Now parse our custom JSON format from the text
             try
             {
-                GeminiAIResponse customResponse = JsonConvert.DeserializeObject<GeminiAIResponse>(textContent);
+                // Clean the text content - remove markdown formatting if present
+                string cleanJsonText = textContent;
+                if (cleanJsonText.StartsWith("```json") && cleanJsonText.EndsWith("```"))
+                {
+                    cleanJsonText = cleanJsonText.Substring("```json".Length, cleanJsonText.Length - "```json".Length - "```".Length).Trim();
+                    Debug.Log("Detected and removed markdown json formatting");
+                }
+                else if (cleanJsonText.StartsWith("```") && cleanJsonText.EndsWith("```"))
+                {
+                    cleanJsonText = cleanJsonText.Substring("```".Length, cleanJsonText.Length - "```".Length - "```".Length).Trim();
+                    Debug.Log("Detected and removed markdown code formatting");
+                }
+                
+                Debug.Log($"Attempting to parse JSON: {cleanJsonText.Substring(0, Math.Min(100, cleanJsonText.Length))}...");
+                
+                GeminiAIResponse customResponse = JsonConvert.DeserializeObject<GeminiAIResponse>(cleanJsonText);
                 
                 if (customResponse == null)
                 {
                     Debug.LogError("Failed to parse custom response JSON - null result");
-                    Debug.LogError("Raw content: " + textContent);
+                    Debug.LogError("Raw content: " + cleanJsonText);
                     return "I'm feeling confused... (Parsing error)";
                 }
                 
@@ -493,7 +509,7 @@ public class MonsterAnimController : MonoBehaviour
                 if (customResponse.dialogue == null)
                 {
                     Debug.LogError("Dialogue field is null in parsed response");
-                    Debug.LogError("Raw content: " + textContent);
+                    Debug.LogError("Raw content: " + cleanJsonText);
                     return "I'm not sure what to say... (Dialogue missing)";
                 }
                 
@@ -511,6 +527,19 @@ public class MonsterAnimController : MonoBehaviour
                 string errorMsg = $"JSON parsing error: {jsonEx.Message}";
                 Debug.LogError(errorMsg);
                 Debug.LogError("Content that failed to parse: " + textContent);
+                
+                // Try fallback parsing method - manual extraction
+                try {
+                    Debug.Log("Attempting fallback parsing method...");
+                    string fallbackResponse = ManualJsonExtraction(textContent);
+                    if (!string.IsNullOrEmpty(fallbackResponse)) {
+                        return fallbackResponse;
+                    }
+                }
+                catch (Exception fallbackEx) {
+                    Debug.LogError($"Fallback parsing also failed: {fallbackEx.Message}");
+                }
+                
                 return $"I'm having trouble understanding... (JSON error: {jsonEx.Message})";
             }
         }
@@ -519,7 +548,91 @@ public class MonsterAnimController : MonoBehaviour
             string errorMsg = $"Error parsing AI response: {ex.Message}";
             Debug.LogError(errorMsg);
             Debug.LogError("JSON response preview: " + jsonResponse.Substring(0, Math.Min(500, jsonResponse.Length)));
+            
+            // Try fallback parsing method - manual extraction
+            try {
+                Debug.Log("Attempting fallback parsing method for general exception...");
+                string fallbackResponse = ManualJsonExtraction(jsonResponse);
+                if (!string.IsNullOrEmpty(fallbackResponse)) {
+                    return fallbackResponse;
+                }
+            }
+            catch (Exception fallbackEx) {
+                Debug.LogError($"Fallback parsing also failed: {fallbackEx.Message}");
+            }
+            
             return $"I'm not feeling quite right... (Error: {ex.Message})";
+        }
+    }
+    
+    // Manual JSON extraction in case the regular parser fails
+    private string ManualJsonExtraction(string text)
+    {
+        Debug.Log("Starting manual JSON extraction");
+        
+        try {
+            // Try to find the dialogue field manually
+            int dialogueStart = text.IndexOf("\"dialogue\":");
+            if (dialogueStart < 0) {
+                Debug.LogError("Could not find dialogue field in text");
+                return null;
+            }
+            
+            dialogueStart += "\"dialogue\":".Length;
+            
+            // Find the string value (should be between quotes)
+            int valueStart = text.IndexOf("\"", dialogueStart);
+            if (valueStart < 0) {
+                Debug.LogError("Could not find start of dialogue value");
+                return null;
+            }
+            
+            valueStart++; // Move past the opening quote
+            
+            // Find the end quote for the dialogue value
+            int valueEnd = -1;
+            bool escaped = false;
+            for (int i = valueStart; i < text.Length; i++) {
+                if (text[i] == '\\') {
+                    escaped = !escaped;
+                } else if (text[i] == '"' && !escaped) {
+                    valueEnd = i;
+                    break;
+                } else {
+                    escaped = false;
+                }
+            }
+            
+            if (valueEnd < 0) {
+                Debug.LogError("Could not find end of dialogue value");
+                return null;
+            }
+            
+            string dialogue = text.Substring(valueStart, valueEnd - valueStart);
+            Debug.Log($"Manually extracted dialogue: {dialogue}");
+            
+            // Try to manually extract animation field
+            string animation = "idle"; // Default
+            int animationStart = text.IndexOf("\"animation\":");
+            if (animationStart >= 0) {
+                animationStart += "\"animation\":".Length;
+                int animValueStart = text.IndexOf("\"", animationStart);
+                if (animValueStart >= 0) {
+                    animValueStart++; // Move past opening quote
+                    int animValueEnd = text.IndexOf("\"", animValueStart);
+                    if (animValueEnd >= 0) {
+                        animation = text.Substring(animValueStart, animValueEnd - animValueStart);
+                        Debug.Log($"Manually extracted animation: {animation}");
+                        SetAnimation(animation);
+                    }
+                }
+            }
+            
+            return dialogue;
+        }
+        catch (Exception ex) {
+            Debug.LogError($"Error in manual extraction: {ex.Message}");
+            return null;
         }
     }
     
