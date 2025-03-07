@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Threading.Tasks;
@@ -16,8 +17,7 @@ public class MonsterAnimController : MonoBehaviour
     public Button feedButton;
     public Button playButton;
     public Button trainButton;
-    [SerializeField]
-    public string apiKey = "AIzaSyDQbIuik9n1NDVfzSv0Xtvqjk_nHbpYy-c";
+    private string apiKey;
     private bool isWaitingForResponse = false;
 
     private float attitude = 0.5f;
@@ -29,6 +29,7 @@ public class MonsterAnimController : MonoBehaviour
 
     void Start()
     {
+        LoadAPIKey();
         anim = GetComponent<Animator>();
         if (mainCamera == null) mainCamera = Camera.main;
         if (chatInput != null) chatInput.onEndEdit.AddListener(OnChatSubmit);
@@ -36,6 +37,27 @@ public class MonsterAnimController : MonoBehaviour
         if (playButton != null) playButton.onClick.AddListener(() => OnPlayerAction("play"));
         if (trainButton != null) trainButton.onClick.AddListener(() => OnPlayerAction("train"));
         StartCoroutine(AutoUpdateAI());
+    }
+
+    void LoadAPIKey()
+    {
+        string envFilePath = Application.dataPath + "/../.env"; // One level above 'Assets'
+        if (File.Exists(envFilePath))
+        {
+            string[] lines = File.ReadAllLines(envFilePath);
+            foreach (string line in lines)
+            {
+                if (line.StartsWith("GEMINI_API_KEY="))
+                {
+                    apiKey = line.Substring("GEMINI_API_KEY=".Length).Trim();
+                    break;
+                }
+            }
+        }
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            Debug.LogError("API Key is missing or not loaded from .env file.");
+        }
     }
 
     void OnPlayerAction(string actionType)
@@ -115,7 +137,7 @@ public class MonsterAnimController : MonoBehaviour
 
     string GenerateSystemPrompt(string eventType, string message)
     {
-        return $"You are controlling a virtual monster character with emotions... Event: {eventType}. Message: \"{message}\". Output JSON format required.";
+        return $"You are controlling a virtual monster character with emotions: attitude: {attitude:F2}, hunger: {hunger:F2}, playfulness: {playfulness:F2}, irritation: {irritation:F2}, sleepiness: {sleepiness:F2}, excitement: {excitement:F2}. Event: {eventType}. Player message: \"{message}\". Generate JSON response in EXACTLY this format: {\"dialogue\": \"Your response here\", \"emotion_updates\": {\"attitude\": 0.5, \"hunger\": 0.5, \"playfulness\": 0.5, \"irritation\": 0.2, \"sleepiness\": 0.3, \"excitement\": 0.7}, \"animation\": \"idle\"}. Only use: idle, walk, run, jump, eat, play, train.";
     }
 
     string HandleAIResponse(string jsonResponse)
@@ -132,24 +154,4 @@ public class MonsterAnimController : MonoBehaviour
             return "I'm feeling confused...";
         }
     }
-
-    IEnumerator AutoUpdateAI()
-    {
-        while (true)
-        {
-            yield return new WaitForSeconds(10f);
-            if (!isWaitingForResponse)
-            {
-                isWaitingForResponse = true;
-                yield return StartCoroutine(ProcessAIResponse("", "animation_completed"));
-                isWaitingForResponse = false;
-            }
-        }
-    }
-}
-
-[System.Serializable]
-public class GeminiAIResponse
-{
-    public string dialogue;
 }
