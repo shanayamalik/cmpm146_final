@@ -1,3 +1,40 @@
+/*
+    * MonsterAnimController.cs
+    * -----------------------
+    * 
+    * SETUP INSTRUCTIONS:
+    * 
+    * 1. ATTACH TO CHARACTER:
+    *    - Attach this script to the monster character GameObject in the scene
+    * 
+    * 2. SETUP UI COMPONENTS:
+    *    - Create a Canvas with:
+    *      a) InputField component (for player to type messages)
+    *      b) Text component (to display monster's responses)
+    *    - Drag these UI components to the corresponding fields in this script via the Inspector
+    * 
+    * 3. API CONFIGURATION:
+    *    - Store API key securely in a .env file to prevent leaks
+    *    - The script will load it dynamically from the .env file
+    * 
+    * 4. ANIMATOR SETUP:
+    *    - Ensure the character has an Animator component with these animation states:
+    *      - state 0: idle
+    *      - state 1: walk
+    *      - state 2: run
+    *      - state 3: jump
+    *    - The Animator should have a "state" integer parameter that this script controls
+    * 
+    * 5. TESTING:
+    *    - Enter Play mode, type a message in the InputField and press Enter
+    *    - The monster should respond based on its emotional state
+    *    - The monster will also update its state every 10 seconds when idle
+    * 
+    * DEPENDENCIES:
+    * - Requires Newtonsoft.Json for JSON parsing (install via Unity Package Manager)
+    * - Uses UnityEngine.Networking for API calls
+    */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -132,26 +169,6 @@ public class MonsterAnimController : MonoBehaviour
             Debug.LogError(exceptionMessage);
             if (chatResponseText != null) chatResponseText.text = exceptionMessage;
             return null;
-        }
-    }
-
-    string GenerateSystemPrompt(string eventType, string message)
-    {
-        return $"You are controlling a virtual monster character with emotions: attitude: {attitude:F2}, hunger: {hunger:F2}, playfulness: {playfulness:F2}, irritation: {irritation:F2}, sleepiness: {sleepiness:F2}, excitement: {excitement:F2}. Event: {eventType}. Player message: \"{message}\". Generate JSON response in EXACTLY this format: {\"dialogue\": \"Your response here\", \"emotion_updates\": {\"attitude\": 0.5, \"hunger\": 0.5, \"playfulness\": 0.5, \"irritation\": 0.2, \"sleepiness\": 0.3, \"excitement\": 0.7}, \"animation\": \"idle\"}. Only use: idle, walk, run, jump, eat, play, train.";
-    }
-
-    string HandleAIResponse(string jsonResponse)
-    {
-        try
-        {
-            GeminiAIResponse response = JsonConvert.DeserializeObject<GeminiAIResponse>(jsonResponse);
-            if (response == null) return "Invalid AI response format.";
-            return response.dialogue;
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"Error parsing AI response: {ex.Message}\nJSON: {jsonResponse}");
-            return "I'm feeling confused...";
         }
     }
 }
