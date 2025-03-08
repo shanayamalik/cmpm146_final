@@ -106,6 +106,13 @@ public class MonsterAnimController : MonoBehaviour
     private float sleepiness = 0.3f;
     private float excitement = 0.7f;
 
+    public float Attitude => attitude;
+    public float Hunger => hunger;
+    public float Playfulness => playfulness;
+    public float Irritation => irritation;
+    public float Sleepiness => sleepiness;
+    public float Excitement => excitement;
+
     void Start()
     {
         // Load API key from environment variable
@@ -135,6 +142,7 @@ public class MonsterAnimController : MonoBehaviour
 
         // Start periodic AI updates
         StartCoroutine(AutoUpdateAI());
+        //UpdateStatus();
     }
 
     private void LoadApiKey()
@@ -198,9 +206,10 @@ public class MonsterAnimController : MonoBehaviour
             case "feed":
                 hunger = Mathf.Clamp01(hunger - 0.2f); // Reduces hunger when fed
                 attitude = Mathf.Clamp01(attitude + 0.1f);
-                SetAnimation("idle"); // Since eat animation isn't available yet
+                SetAnimation("walk"); // Since eat animation isn't available yet
                 chatResponseText.text = "Feeding";
                 Debug.Log("Feeding!!");
+                Debug.Log("hunger: " + hunger + "\n" + "attitude: " + attitude);
                 break;
 
             case "play":
@@ -555,21 +564,29 @@ public class MonsterAnimController : MonoBehaviour
         switch (animationName.ToLower())
         {
             case "idle":
-                anim.SetInteger("state", 1);
+                anim.SetInteger("state", 0);
                 break;
             case "jump":
-                anim.SetInteger("state", 2);
+                anim.SetInteger("state", 1);
+                Invoke("ReturnToIdle", 0.667f * 2); // Adjust the delay based on animation length
                 break;
             case "walk":
-                anim.SetInteger("state", 3);
+                anim.SetInteger("state", 2);
+                Invoke("ReturnToIdle", 1.0f);
                 break;
             case "run":
-                anim.SetInteger("state", 4);
+                anim.SetInteger("state", 3);
+                Invoke("ReturnToIdle", 2.0f);
                 break;
             default:
-                anim.SetInteger("state", 1); // Default to idle
+                anim.SetInteger("state", 0);
                 break;
         }
+    }
+
+    void ReturnToIdle()
+    {
+        anim.SetInteger("state", 0); // Return to idle
     }
     
     IEnumerator AutoUpdateAI()
