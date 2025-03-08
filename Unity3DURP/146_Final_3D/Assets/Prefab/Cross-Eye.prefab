@@ -80,6 +80,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 8682648475638011153}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 1e2a19b817e79eb439a7b60059cecc0d,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 158975847680625165}
   m_SourcePrefab: {fileID: 100100000, guid: 1e2a19b817e79eb439a7b60059cecc0d, type: 3}
 --- !u!1 &6203701359391043798 stripped
 GameObject:
@@ -120,3 +124,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f924f9eeddb974d4a8de5f573235a8df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &158975847680625165
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6203701359391043798}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 883eb500268217f48adc5d32438d1df0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mainCamera: {fileID: 0}
+  chatInput: {fileID: 0}
+  chatResponseText: {fileID: 0}
+  apiKey: YOUR_GEMINI_API_KEY_HERE
+  feedButton: {fileID: 0}
+  playButton: {fileID: 0}
+  trainButton: {fileID: 0}
