@@ -43,9 +43,13 @@ public class IncubatorSpawner : MonoBehaviour
             // Instantiate the selected creature
             GameObject spawnedCreature = Instantiate(CreatureTracker.selectedCreaturePrefab, spawnPosition, spawnRotation);
 
+            CreatureTracker.SetSelectedInstance(spawnedCreature);
+
             // Enable and configure the MonsterAnimController component
-            MonsterAnimController animController = spawnedCreature.GetComponent<MonsterAnimController>();
-            if (animController != null)
+            
+            // MonsterAnimController animController = spawnedCreature.GetComponent<MonsterAnimController>();
+            // if (animController != null)
+            if (spawnedCreature.TryGetComponent<MonsterAnimController>(out var animController))
             {
                 animController.enabled = true;
                 animController.mainCamera = mainCamera != null ? mainCamera : Camera.main;
