@@ -554,7 +554,7 @@ public class MonsterAnimController : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(10f); // Send update every 10 seconds
+            yield return new WaitForSeconds(25f); // Send update every 25 seconds
             
             if (!isWaitingForResponse) // Avoid conflicts with player input
             {
