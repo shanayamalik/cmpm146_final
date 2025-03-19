@@ -81,19 +81,19 @@ public class StatusUI : MonoBehaviour
     void UpdateSliders()
     {
         // Update sliders with the latest values
-        attitudeSlider.value = monsterScript.Attitude;
-        hungerSlider.value = monsterScript.Hunger;
-        playfulnessSlider.value = monsterScript.Playfulness;
-        irritationSlider.value = monsterScript.Irritation;
-        sleepinessSlider.value = monsterScript.Sleepiness;
-        excitementSlider.value = monsterScript.Excitement;
+        attitudeSlider.value = monsterScript.attitude;
+        hungerSlider.value = monsterScript.hunger;
+        playfulnessSlider.value = monsterScript.playfulness;
+        irritationSlider.value = monsterScript.irritation;
+        sleepinessSlider.value = monsterScript.sleepiness;
+        excitementSlider.value = monsterScript.excitement;
 
         // Update text labels
-        attitudeText.text = "Attitude: " + monsterScript.Attitude.ToString("F1");
-        hungerText.text = "Hunger: " + monsterScript.Hunger.ToString("F1");
-        playfulnessText.text = "Playfulness: " + monsterScript.Playfulness.ToString("F1");
-        irritationText.text = "Irritation: " + monsterScript.Irritation.ToString("F1");
-        sleepinessText.text = "Sleepiness: " + monsterScript.Sleepiness.ToString("F1");
-        excitementText.text = "Excitement: " + monsterScript.Excitement.ToString("F1");
+        attitudeText.text = "Attitude: " + monsterScript.attitude.ToString("F1");
+        hungerText.text = "Hunger: " + monsterScript.hunger.ToString("F1");
+        playfulnessText.text = "Playfulness: " + monsterScript.playfulness.ToString("F1");
+        irritationText.text = "Irritation: " + monsterScript.irritation.ToString("F1");
+        sleepinessText.text = "Sleepiness: " + monsterScript.sleepiness.ToString("F1");
+        excitementText.text = "Excitement: " + monsterScript.excitement.ToString("F1");
     }
 }

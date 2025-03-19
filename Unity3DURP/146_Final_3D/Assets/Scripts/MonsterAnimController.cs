@@ -60,12 +60,12 @@ public class MonsterAnimController : MonoBehaviour
     private bool isWaitingForResponse = false; // Prevent multiple requests at once
     
     // Emotion states (0 to 1 scale)
-    private float attitude = 0.5f;
-    private float hunger = 0.5f;
-    private float playfulness = 0.5f;
-    private float irritation = 0.2f;
-    private float sleepiness = 0.3f;
-    private float excitement = 0.7f;
+    public float attitude = 0.5f;
+    public float hunger = 0.5f;
+    public float playfulness = 0.5f;
+    public float irritation = 0.2f;
+    public float sleepiness = 0.3f;
+    public float excitement = 0.7f;
 
     public float Attitude => attitude;
     public float Hunger => hunger;
